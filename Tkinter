@@ -1,0 +1,257 @@
+# 创建主窗口
+from tkinter import *
+from tkinter import ttk
+import tkinter as tk
+from tkinter.messagebox import showinfo
+import os
+import requests
+import json
+import csv
+import re
+from concurrent.futures import ThreadPoolExecutor
+import threading
+import pandas as pd
+import csv
+
+root = Tk()
+root.title('职位查询分析数据平台 -- Dragon少年')
+# 设置窗口大小
+root.minsize(1380, 730)
+root.resizable(False, False)
+
+#得到屏幕宽度
+sw = root.winfo_screenwidth()
+#得到屏幕高度
+sh = root.winfo_screenheight()
+ww = 1380
+wh = 730
+x = (sw-ww) / 2
+y = (sh-wh) / 2
+root.geometry("%dx%d+%d+%d" %(ww,wh,x,y))
+# makes the root window fixed in size.
+
+# Frame for TreeView
+frame1 = tk.LabelFrame(root, text="Excel Data")
+frame1.place(height=700, width=1000)
+
+# Frame for open file dialog
+
+
+# Buttons
+
+# The file/file path text
+
+
+type_str=StringVar()
+#设置滚动窗口文本
+habits = tk.LabelFrame(root, text="公司类型", padx=10, pady=4 )  # 水平，垂直方向上的边距均为 10
+habits.place(x=1035, y=170)
+habits_Window = Label(habits, textvariable=type_str, width=30, height=10,  font=('楷体', 12))
+habits_Window.grid()
+
+
+size_str=StringVar()
+#设置滚动窗口文本
+company_size = tk.LabelFrame(root, text="公司规模", padx=10, pady=4 )  # 水平，垂直方向上的边距均为 10
+company_size.place(x=1035, y=370)
+company_size_Window = Label(company_size, textvariable=size_str, width=30, height=8,  font=('楷体', 12))
+company_size_Window.grid()
+
+edu_str=StringVar()
+#设置滚动窗口文本
+company_edu = tk.LabelFrame(root, text="学历要求", padx=10, pady=4 )  # 水平，垂直方向上的边距均为 10
+company_edu.place(x=1035, y=540)
+company_edu_Window = Label(company_edu, textvariable=edu_str, width=30, height=8,  font=('楷体', 12))
+company_edu_Window.grid()
+
+# 打开文件
+# right_top_button = Button(frame_right_top, text="打开文件", command=lambda :openFile(), font=('楷体', 12))
+input_name = Label(root, text='岗位关键字:', font=('楷体', 12)).place(x=1030, y=10)
+label = StringVar()
+entry = Entry(root, bg='#ffffff', width=20, textvariable=label, font=('楷体', 12)).place(x=1150, y=10)
+
+input_num = Label(root, text='数据条数:', font=('楷体', 12)).place(x=1030, y=50)
+label_num = StringVar()
+entry_num = Entry(root, bg='#ffffff', width=15, textvariable=label_num, font=('楷体', 12)).place(x=1110, y=50)
+btn_search = Button(root, text="查询输出", command=lambda :openFile(label, label_num), font=('楷体', 12)).place(x=1240, y=50)
+
+right_pic_button = Button(root, text="工作经验对应薪资图", command=lambda: show_plot(), font=('楷体', 12)).place(x=1030, y=90)
+right_hist_button = Button(root, text="工资分布图", command=lambda: show_hist(), font=('楷体', 12)).place(x=1210, y=90)
+right_data_button = Button(root, text="数据分析", command=lambda: show_data(), font=('楷体', 12)).place(x=1030, y=130)
+## Treeview Widget
+tv1 = ttk.Treeview(frame1)
+tv1.place(relheight=1, relwidth=1) # set the height and width of the widget to 100% of its container (frame1).
+
+
+treescrolly = tk.Scrollbar(frame1, orient="vertical", command=tv1.yview) # command means update the yaxis view of the widget
+treescrollx = tk.Scrollbar(frame1, orient="horizontal", command=tv1.xview) # command means update the xaxis view of the widget
+tv1.configure(xscrollcommand=treescrollx.set, yscrollcommand=treescrolly.set) # assign the scrollbars to the Treeview Widget
+treescrollx.pack(side="bottom", fill="x") # make the scrollbar fill the x axis of the Treeview widget
+treescrolly.pack(side="right", fill="y") # make the scrollbar fill the y axis of the Treeview widget
+
+
+def File_dialog():
+    """This Function will open the file explorer and assign the chosen file path to label_file"""
+    filename = filedialog.askopenfilename(initialdir="/",
+                                          title="Select A File",
+                                          filetype=(("xlsx files", "*.xlsx"),("All Files", "*.*")))
+    label_file["text"] = filename
+    return None
+count=0
+def parse(url, headers, csv_writer,kw,main):
+    global count
+    print('ok')
+    resp=requests.get(url=url,headers=headers)
+    # print(resp.text)
+    info=re.findall('window.__SEARCH_RESULT__ = (.*?)</script>',resp.text)[0]
+    info=json.loads(info)['engine_jds']
+    for index in info:
+        dit={
+            '岗位名称':index['job_name'],
+            '公司名称':index['company_name'],
+            '公司类型':index['companytype_text'],
+            '公司规模': index['companysize_text'],
+            '地点':index['workarea_text'],
+            '学历':index['attribute_text'][2],
+            '工作经验':index['attribute_text'][1],
+            '工资':index['providesalary_text'],
+        }
+        csv_writer.writerow(dit)
+        print(dit.values())
+    print(count)
+    count -= 1
+    while count==0:
+        close(main,kw)
+        break
+
+
+def keepLooping(bar,main):
+    kw=label.get()
+    try:
+        os.remove(f"{kw}.csv")
+        print('done')
+        import time
+        time.sleep(1)
+    except:
+        print('no file')
+        pass
+    print('hahah')
+    global count
+    page=label_num.get()
+    count+=int(page)
+    count=int(page)
+    f = open(f'java.csv', mode='a', encoding='utf-8', newline='')
+    csv_writer = csv.DictWriter(f, fieldnames=[
+        '岗位名称',
+        '公司名称',
+        '公司类型',
+        '公司规模',
+        '地点',
+        '学历',
+        '工作经验',
+        '工资',
+    ])
+    csv_writer.writeheader()
+    with ThreadPoolExecutor(20) as t:
+        for x in range(1,int(page)+2):
+            url = f'https://search.51job.com/list/000000,000000,0000,00,9,99,{kw},2,{x}.html?lang=c&postchannel=0000&workyear=99&cotype=99&degreefrom=99&jobterm=99&companysize=99&ord_field=0&dibiaoid=0&line=&welfare='
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36'
+            }
+            t.submit(parse,url, headers, csv_writer,kw,main)
+
+def close(main,kw):
+    showinfo(message='The Process is completed!')
+    main.withdraw()
+    visual(kw)
+
+
+def show_plot():
+    visual('java')
+
+def ok():
+    kw=label.get()
+    page=label_num.get()
+    main = Tk()
+    main.title('Progress bar')
+    main.geometry("500x50+450+450")
+    main.resizable(False, False)
+    # You need to use indeterminate mode to achieve this
+    loading = Label(main, text=f'Scraping {kw} {page} page...', font=('楷体', 12)).place(x=170, y=25)
+    pb = ttk.Progressbar(main, length=300, mode='indeterminate')
+    pb.pack()
+
+    # Create a thread for monitoring loading bar
+    # Note the passing of the loading bar as an argument
+    barThread = threading.Thread(target=keepLooping, args=(pb, main))
+    # set thread as daemon (thread will die if parent is killed)
+    barThread.daemon = True
+    # Start thread, could also use main.after(50, barThread.start()) if desired
+    barThread.start()
+    pb.start(15)
+    main.mainloop()
+
+
+def openFile(label,label_num):
+    ok()
+    """If the file selected is valid this will load the file into the Treeview"""
+def visual(kw):
+    print('ok')
+    file_path = f'java.csv'
+    try:
+        excel_filename = r"{}".format(file_path)
+        if excel_filename[-4:] == ".csv":
+            df = pd.read_csv(excel_filename)
+        else:
+            df = pd.read_excel(excel_filename)
+
+    except ValueError:
+        tk.messagebox.showerror("Information", "The file you have chosen is invalid")
+        return None
+    except FileNotFoundError:
+        tk.messagebox.showerror("Information", f"No such file as {file_path}")
+        return None
+
+    clear_data()
+    # tv1["column"] = list(df.columns)
+    tv1['columns'] = ('编号', '岗位名称', '公司名称', '公司类型', '公司规模', '地点', '学历', '工作经验', '工资')
+    tv1.column("编号", width=35, anchor="center")
+    tv1.column("岗位名称", width=230, anchor="center")
+    tv1.column("公司名称", width=200, anchor="center")
+    tv1.column("公司类型", width=80, anchor="center")
+    tv1.column("公司规模", width=100, anchor="center")
+    tv1.column("地点", width=95, anchor="center")
+    tv1.column("学历", width=70, anchor="center")
+    tv1.column("工作经验", width=90, anchor="center")
+    tv1.column("工资", width=90, anchor="center")
+
+    tv1.heading("编号", text="编号")
+    tv1.heading("岗位名称", text="岗位名称")
+    tv1.heading("公司名称", text="公司名称")
+    tv1.heading("公司类型", text="公司类型")
+    tv1.heading("公司规模", text="公司规模")
+    tv1.heading("地点", text="地点")
+    tv1.heading("学历", text="学历")
+    tv1.heading("工作经验", text="工作经验")
+    tv1.heading("工资", text="工资")
+    tv1["show"] = "headings"
+    for column in tv1["columns"]:
+        tv1.heading(column, text=column)  # let the column heading = column name
+
+    df_rows = df.to_numpy().tolist()  # turns the dataframe into a list of lists
+    count = 1
+    for row in df_rows:
+        row = row
+        row.insert(0, f'{count}')
+        tv1.insert("", "end",
+                   values=row)  # inserts each list into the treeview. For parameters see https://docs.python.org/3/library/tkinter.ttk.html#tkinter.ttk.Treeview.insert
+        count += 1
+    return None
+
+
+def clear_data():
+    tv1.delete(*tv1.get_children())
+    return None
+
+
+root.mainloop()
